@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+
+		<meta name="apple-mobile-web-app-title" content="NosMediaServer">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+		<!-- shrink-to-fit=no -->
+		<meta name="viewport" content="viewport-fit=cover, shrink-to-fit=yes, user-scalable=yes, width=device-width, minimal-ui, initial-scale=1, maximum-scale=1">
+
+
+		<title>NosMediaServer</title>
+
+		<!-- Bootstrap CSS CDN -->
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css" integrity="sha384-9gVQ4dYFwwWSjIDZnLEWnxCjeSWFphJiwGPXr1jddIhOegiu1FwO5qRGvFXOdJZ4" crossorigin="anonymous"> 
+		<!-- Our Custom CSS -->
+		<link rel="stylesheet" href="{{basepath}}serve/base/style.css">
+
+		<!-- Font Awesome JS -->
+		<script defer src="https://use.fontawesome.com/releases/v5.0.13/js/solid.js" integrity="sha384-tzzSw1/Vo+0N5UhStP3bvwWPq+uvzCMfrN1fEFe+xBmv1C/AtVX5K0uZtmcHitFZ" crossorigin="anonymous"></script>
+		<script defer src="https://use.fontawesome.com/releases/v5.0.13/js/fontawesome.js" integrity="sha384-6OIrr52G08NpOFSZdxxz1xdNSndlD4vdcf/q2myIUVO0VsqaGHJsB0RaBE01VTOY" crossorigin="anonymous"></script>
+
+		<!-- PhotoSwipe -->
+		<!-- Core CSS file -->
+		<link rel="stylesheet" href="{{basepath}}serve/photoswipe/photoswipe.css"> 
+
+		<!-- Skin CSS file (styling of UI - buttons, caption, etc.)
+			 In the folder of skin CSS file there are also:
+			 - .png and .svg icons sprite, 
+			 - preloader.gif (for browsers that do not support CSS animations) -->
+		<link rel="stylesheet" href="{{basepath}}serve/photoswipe/default-skin/default-skin.css"> 
+
+		<!-- Core JS file -->
+		<script src="{{basepath}}serve/photoswipe/photoswipe.min.js"></script> 
+
+		<!-- UI JS file -->
+		<script src="{{basepath}}serve/photoswipe/photoswipe-ui-default.min.js"></script> 
+
+		<!-- HEIF Support from Nokia -->
+		<!-- use magick some.bmp some.heic -->
+		<script src="{{basepath}}serve/heif/heif-api.js"></script> 
+		<script src="{{basepath}}serve/heif/libde265.min.js"></script>
+		<script src="{{basepath}}serve/heif/hevc-decoder.js"></script>
+		<script src="{{basepath}}serve/heif/image-provider.js"></script>
+		<script src="{{basepath}}serve/heif/heif-extension.js"></script>
+	</head>
+
+	<body>
+		<div class="wrapper">
+			<!-- Sidebar  -->
+			<nav id="sidebar" {% if "iPhone" in request.user_agent.string or "Android" in request.user_agent.string %} class="active" {% endif %}>
+				<div class="sidebar-header">
+					<h3>NosMediaServer</h3>
+					<strong>NMS</strong>
+				</div>
+
+				<ul class="list-unstyled CTAs">
+					<li style="float:none;">
+						<!-- TODO: Fix mobile back button -->
+						<a href="../" class="article">Back</a>
+					</li>
+				</ul>
+
+				<ul class="list-unstyled components">
+					{% for n in folders %}
+					<li>
+						<a href="{{n['link']}}">
+							<i class="fas fa-image"></i>
+							{{n['name']}}
+						</a>
+					</li>
+					{% endfor %}
+				</ul>
+			</nav>
+
+			<!-- Page Content  -->
+			<div id="content">
+
+				<nav class="navbar navbar-expand-lg navbar-light bg-light">
+					<div class="container-fluid">
+
+						<button type="button" id="sidebarCollapse" class="btn btn-info">
+							<i class="fas fa-align-left"></i>
+							<span>Toggle Sidebar</span>
+						</button>
+						<button type="button" id="rescan" class="btn btn-info">
+							<i class="fas fa-align-right"></i>
+							<span>Scan</span>
+						</button>
+					</div>
+				</nav>
+
+
+				<h2 style="overflow: hidden;word-break: break-all;">{{folder_name}}</h2>
+				<!-- TODO: Only if safari: -->
+				<p>WARNING: If you use Safari, please enable lazy image loading for bigger picture albums!</p>
+				<p>WARNING: If you use Firefox, the first seconds of any video wont work!</p>
+
+				<div class="line"></div>
+
+				<!-- TODO: Autofit videos so it smoothly transitions between 1 video using full width, to 2 videos where each fill -->
+				<!-- TODO: Generally better mobile support -->
+				<!-- TODO: Maybe following sidebar -->
+				<h3>Videos</h3>
+				<ul>
+					{% for n in videos %}
+						<a href="{{basepath}}{{n['link']}}" title="{{n['name']}}">
+							<figure class="figure">
+								<div style="overflow: visible; position: relative;">
+									<!-- 560x480 -->
+									<img width="{{n['width']}}" height="{{n['height']}}" loading="lazy" src="{{basepath}}thumbnail/{{n['cover']}}.jpeg" style="display: inline-block;" class="figure-img img-fluid rounded" alt="{{n['name']}}">
+
+									{% if n['has_handy'] %}
+									<img src="{{basepath}}serve/base/handy.png" style="position: absolute; top: 0; left: 0; width:100px; height: 100px;">
+									{% endif %}
+
+								</div>
+								<figcaption class="figure-caption">{{n['name']}}</figcaption>
+							</figure>
+						</a>
+					{% endfor %}
+				</ul>
+
+				<div class="line"></div>
+
+				<h3>Images</h3>
+				<ul>
+					<!-- TODO BUG: the mobileui extends its width for some reason-->
+					<!-- TODO BUG: Sometimes the image exits the container -->
+					<div class="my-gallery" itemscope itemtype="http://schema.org/ImageGallery">
+						{% for n in images %}
+						<figure itemprop="associatedMedia" itemscope itemtype="http://schema.org/ImageObject">
+							<a data-src="{{basepath}}image/{{n['hash']}}" itemprop="contentUrl" data-size="{{n['width']}}x{{n['height']}}" style="cursor:pointer;">
+								<!-- 560x480 -->
+								<img width="{{n['width']}}" height="{{n['height']}}" loading="lazy" src="{{basepath}}thumbnail/{{n['hash']}}.jpeg" itemprop="thumbnail" alt="{{n['name']}}"/>
+								<figcaption itemprop="caption description">{{n['name']}}</figcaption>
+							</a>
+						</figure>
+						{% endfor %}
+					</div>
+					<!-- TODO BUG: This loads slowly, disable click until loaded-->
+					<script src="{{basepath}}serve/photoswipe/initgallery.js"></script> 
+				</ul>
+			</div>
+		</div>
+
+		<!-- How many are needed? -->
+		<div class="footer-main bg-dark text-white-50 py-3 small">
+			<div class="container">
+				HTML Design by: Ondrej Svestka @
+				<a href="https://bootstrapious.com/p/bootstrap-sidebar#4-partially-collapsing-static-sidebar">
+					bootstrapious.com
+				</a><br>
+				Bootstrap 4.1.0 by: Mark Otto @
+				<a href="https://getbootstrap.com">
+					getbootstrap.com
+				</a><br>
+				JQuery 3.3.1 slim by: John Resig @
+				<a href="https://jquery.com">
+					jquery.com
+				</a><br>
+				Popper.JS by: Federico Zivolo @
+				<a href="https://github.com/popperjs/popper-core">
+					popper-core.git
+				</a><br>
+				PhotoSwipe JavaScript gallery by: Dmitry Semenov @
+				<a href="https://photoswipe.com">
+					photowipe.com
+				</a><br>
+			</div>
+		</div>
+
+
+		<!-- jQuery CDN - Slim version (=without AJAX) -->
+		<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+		<!-- Popper.JS -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js" integrity="sha384-cs/chFZiN24E4KMATLdqdvsezGxaGsi4hLGOzlXwp5UZB1LY//20VyM2taTB4QvJ" crossorigin="anonymous"></script>
+		<!-- Bootstrap JS -->
+		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js" integrity="sha384-uefMccjFJAIv6A+rW+L4AHf99KvxDjWSu1z9VI8SKNVmz4sk7buKt/6v9KI65qnm" crossorigin="anonymous"></script>
+
+		<script type="text/javascript">
+			$(document).ready(function () {
+				$('#sidebarCollapse').on('click', function () {
+					$('#sidebar').toggleClass('active');
+				});
+				$('#rescan').on('click', function () {
+					const http = new XMLHttpRequest();
+					http.open("POST", "{{basepath}}scan");
+					http.onreadystatechange = function() {
+						location.reload();
+					};
+					http.send();
+				});
+			});
+		</script>
+
+		<!-- Root element of PhotoSwipe. Must have class pswp. -->
+		<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+			<!-- Background of PhotoSwipe. 
+			It's a separate element as animating opacity is faster than rgba(). -->
+			<div class="pswp__bg"></div>
+
+			<!-- Slides wrapper with overflow:hidden. -->
+			<div class="pswp__scroll-wrap">
+
+				<!-- Container that holds slides. 
+					PhotoSwipe keeps only 3 of them in the DOM to save memory.
+					Don't modify these 3 pswp__item elements, data is added later on. -->
+				<!-- TODO: Autozoom on small images -->
+				<style>
+					.pswp img {
+					    max-width: none;
+					    object-fit: contain;
+					}
+				</style>
+				<div class="pswp__container">
+					<div class="pswp__item"></div>
+					<div class="pswp__item"></div>
+					<div class="pswp__item"></div>
+				</div>
+
+				<!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+				<div class="pswp__ui pswp__ui--hidden">
+					<div class="pswp__top-bar">
+						<!--  Controls are self-explanatory. Order can be changed. -->
+
+						<div class="pswp__counter"></div>
+
+						<button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+						<!-- <button class="pswp__button pswp__button--share" title="Share"></button> -->
+
+						<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+						<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+						<!-- Preloader demo https://codepen.io/dimsemenov/pen/yyBWoR -->
+						<!-- element will get class pswp__preloader--active when preloader is running -->
+						<div class="pswp__preloader">
+							<div class="pswp__preloader__icn">
+								<div class="pswp__preloader__cut">
+									<div class="pswp__preloader__donut"></div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+						<div class="pswp__share-tooltip"></div> 
+					</div>
+
+					<button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+					</button>
+
+					<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+					</button>
+
+					<div class="pswp__caption">
+						<div class="pswp__caption__center"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

@@ -1,0 +1,65 @@
+{
+	"SECRET_KEY": "random_string_goes_here",
+	"SETTINGS": {
+		"media_folders": [
+			"/a/video/folder",
+			"/another/video/folder"
+		],
+		"temporary_folder": "/a/folder_to_store_metadata_and_thumbnails_etc",
+		"thumbnail_height": 480,
+		"ttl": 60,
+		"preprobe": true,
+		"avc_accel": "nvidia_avc",
+		"hevc_accel": "nvidia_hevc",
+		"accel_table": {
+			"nvidia_avc": [
+				"-c:v", "h264_nvenc",
+				"-preset", "p3",
+				"-tune", "hq",
+				"-profile:v", "high",
+				"-tier:v", "high",
+				"-rc", "vbr",
+				"-cq", "30",
+				"-b_ref_mode", "middle",
+				"-bf:v", "4"
+			],
+			"nvidia_hevc": [
+				"-c:v", "hevc_nvenc",
+				"-preset", "p3",
+				"-tune", "hq",
+				"-profile:v", "main10",
+				"-tier:v", "high",
+				"-rc", "vbr",
+				"-cq", "26",
+				"-b_ref_mode", "each",
+				"-bf:v", "5",
+				"-2pass", "1",
+				"-multipass", "1"
+			],
+			"videolan_hevc": [
+				"-c:v", "libx265",
+				"-crf", "18",
+				"-preset", "superfast",
+				"-tag:v", "hvc1",
+				"-x265-params", "wpp=1:pmode=1:pme=1"
+			],
+			"videolan_avc": [
+				"-c:v", "libx264",
+				"-crf", "18",
+				"-preset", "veryfast"
+			],
+			"libsvt_hevc": [
+				"-c:v", "libsvt_hevc",
+				"-tier", "high"
+			],
+			"qsv_hevc": [
+				"-c:v", "hevc_qsv",
+				"-profile", "high"
+			],
+			"qsv_h264": [
+				"-c:v", "h264_qsv",
+				"-profile", "high"
+			]
+		}
+	}
+}

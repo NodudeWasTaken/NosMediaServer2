@@ -1,0 +1,68 @@
+<!-- Really proper html formatting OMEGALUL -->
+<!-- This is strictly for encoding settings, any video settings go in play.html -->
+<link href="https://cdn.jsdelivr.net/gh/kognise/water.css@latest/dist/dark.min.css" rel="stylesheet">
+<p>Browser HEVC Capable: {{canHEVC}}</p>
+<p>Media Format: {{codec_type}}</p>
+
+<p>
+	<input type="checkbox" id="select1" value="force-transcode=1">
+	<label for="select1">Forced transcoding</label><br>
+	<input type="checkbox" id="select2" value="video-codec=h264" onclick="return exclusive(['select3']);">
+	<label for="select2">Forced h264</label><br>
+	<input type="checkbox" id="select3" value="video-codec=h265" onclick="return exclusive(['select2']);">
+	<label for="select3">Forced h265</label><br>
+	Video Bitrate: <input type="text" id="select5" placeholder="30M">
+	Audio Bitrate: <input type="text" id="select6" placeholder="256k">
+	{% for n in subs %}
+		<input type="checkbox" id="sub{{n['id']}}" issub="true" value="{{n['url']}}">
+		<label for="sub{{n['id']}}">{{n["text"]}}</label><br>
+	{% endfor %}
+
+	<button type="submit" onclick="return run();">Submit Query</button>
+</p>
+
+<script>
+
+function exclusive(excs) {
+	for (var i=0; i<excs.length; i++) {
+		const elm = document.getElementById(excs[i]);
+		elm.checked=false;
+	}
+}
+
+function run() {
+	var base = "{{basepath}}media/{{videoid}}?";
+
+	const select1 = document.getElementById("select1");
+	const select2 = document.getElementById("select2");
+	const select3 = document.getElementById("select3");
+	const select5 = document.getElementById("select5");
+	const select6 = document.getElementById("select6");
+
+	if (select1.checked) {
+		base += select1.value + "&";
+	}
+	if (select2.checked) {
+		base += select2.value + "&";
+	}
+	if (select3.checked) {
+		base += select3.value + "&";
+	}
+	if (select5.value != "") { //TODO: Better input validation
+		base += "video-rate=" + select5.value + "&";
+	}
+	if (select6.value != "") {
+		base += "audio-rate=" + select6.value + "&";
+	}
+
+	const subs = document.querySelectorAll('[issub="true"]');
+	for (var i=0; i<subs.length; i++) {
+		if (subs[i].checked) {
+			base += subs[i].value + "&";
+		}
+	}
+
+	window.location.href = base;
+	return true;
+}
+</script>

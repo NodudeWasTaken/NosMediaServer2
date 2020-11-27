@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8"/>
+		<meta http-equiv="cache-control" content="no-cache" />
+		<title>videojs-contrib-hls embed</title>
+		<link href="https://unpkg.com/video.js/dist/video-js.css" rel="stylesheet" crossorigin="anonymous">
+		<link href="https://unpkg.com/videojs-vr/dist/videojs-vr.css" rel="stylesheet" crossorigin="anonymous">
+		<link href="{{basepath}}serve/base/vim.css" rel="stylesheet">
+		<link href="https://cdn.jsdelivr.net/gh/kognise/water.css@latest/dist/dark.min.css" rel="stylesheet" crossorigin="anonymous">
+		<script src="{{basepath}}serve/base/handy3.js"></script>
+		<script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+	</head>
+	<body>
+		<div class="video-js-box vim-css">
+			<video-js id="streaming" class="video-js vjs-16-9" poster="{{basepath}}thumbnail/{{videoid}}.jpeg" controls preload>
+				<!-- <source src="{{videopath}}{{videoid}}/master.mpd" type="application/dash+xml"> -->
+				<source src="{{videopath}}{{videoid}}/master.m3u8" type="application/x-mpegURL">
+
+				{% for n in subs %}
+					<track src="{{videopath}}{{videoid}}/{{n['file']}}" {% if n['default'] %} default {% endif %} kind="subtitles" srclang="{{n['lang']}}" label="{{n['title']}}">
+				{% endfor %}
+			</video-js>
+		</div>
+
+		<br>
+
+		<div style="float:left;">
+			<label for="vrmode">VRMode projection:</label>
+			<select name="VRMode" id="vrmode">
+				<option value="NONE">None</option>
+				<option value="180">180°</option>
+				<option value="360">360°</option>
+				<option value="Cube">Cube</option>
+				<option value="360_LR">360° side-by-side</option>
+				<option value="360_TB">360° top-to-bottom</option>
+				<option value="EAC">Equi-Angular Cubemap</option>
+				<option value="EAC_LR">Equi-Angular Cubemap Left-right</option>
+			</select> 
+
+			<input type="checkbox" id="motion_controls" name="motion_controls">
+			<label for="motion_controls">Motion controls</label><br>
+			<input type="checkbox" id="forced_cardboard" name="forced_cardboard">
+			<label for="forced_cardboard">Force cardboard</label><br>
+		</div>
+
+		<div id="handers" style="display:none;">
+			Handy Key: <input type="text" id="handy_key" placeholder="XXXXXX" autocorrect="off" autocapitalize="none">
+			Offset in ms: <input type="number" id="handy_offset" value="0">
+		</div>
+
+		<br>
+		<a href="{{basepath}}image/{{videoid}}">Download file</a> <!-- LOL API ABUSE -->
+		<p id="state"></p>
+
+
+		<script src="https://unpkg.com/video.js/dist/video.min.js" crossorigin="anonymous"></script>
+		<script src="https://unpkg.com/videojs-vr/dist/videojs-vr.min.js" crossorigin="anonymous"></script>
+		<script src="https://unpkg.com/@videojs/http-streaming/dist/videojs-http-streaming.min.js" crossorigin="anonymous"></script>
+
+		<script>
+			//Cookies work in trashy ways if you use chrome or safari
+			//https://www.w3schools.com/js/js_cookies.asp
+			function setCookie(cname, cvalue, exdays) {
+				var d = new Date();
+				d.setTime(d.getTime() + (exdays*24*60*60*1000));
+				var expires = "expires="+ d.toUTCString();
+				document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+			}
+			function getCookie(cname) {
+				var name = cname + "=";
+				var decodedCookie = decodeURIComponent(document.cookie);
+				var ca = decodedCookie.split(';');
+				for(var i = 0; i <ca.length; i++) {
+					var c = ca[i];
+					while (c.charAt(0) == ' ') {
+						c = c.substring(1);
+					}
+					if (c.indexOf(name) == 0) {
+						return c.substring(name.length, c.length);
+					}
+				}
+				return "";
+			}
+
+			const urlParams = new URLSearchParams(window.location.search);
+
+			videojs.Hls.MAX_GOAL_BUFFER_LENGTH=30;
+			videojs.Hls.GOAL_BUFFER_LENGTH=30;
+			var player = videojs("streaming", {
+				liveui: true,
+				autoplay: false,
+				hls: {
+					// overrideNative: false,
+					bandwidth: 30000000 //UHD 60p support
+				},
+				liveTracker: {
+					trackingThreshold: 0,
+				},
+			}, function() {
+				this.volume(0.5);
+			});
+			if (!player.mediainfo) {
+				player.mediainfo = {};
+			}
+
+			if (!player.mediainfo.projection) {
+				player.mediainfo.projection = urlParams.get("vrmode");
+				if (player.mediainfo.projection == null) {
+					player.mediainfo.projection = "{{vrmode}}";
+				}
+				player.mediainfo.motionControls = urlParams.get("motion_controls") == "true"; //TODO: Set to "yes" what
+				player.mediainfo.forceCardboard = urlParams.get("forced_cardboard") == "true";
+			}
+
+			var mode_option = document.getElementById("vrmode");
+			var motion_option = document.getElementById("motion_controls");
+			var cardboard_option = document.getElementById("forced_cardboard");
+			var handy_option = document.getElementById("handy_key");
+			var handy_offset = document.getElementById("handy_offset");
+
+			mode_option.value = player.mediainfo.projection;
+			motion_option.checked = player.mediainfo.motionControls;
+			cardboard_option.checked = player.mediainfo.forceCardboard;
+
+			var cook = getCookie("nos");
+			if (cook == "") {
+				cook = "{}";
+			}
+			var cookie_data = JSON.parse(cook);
+
+			let connectionkey = null;
+			let scriptUrl = "{{script_url|safe}}"; //My attempt at bypassing html escape
+
+			if ("handy_key" in cookie_data) {
+				//TODO: Should i make this disable-able?
+				//Probably not, since the user could just not connect
+				handy_option.value = cookie_data["handy_key"];
+				connectionkey = handy_option.value;
+			}
+			if ("handy_offset" in cookie_data) {
+				handy_offset.value = cookie_data["handy_offset"];
+			}
+
+			var hand = new TheHandy({
+				apiURL: "https://www.handyfeeling.com/",
+				connectionKey: config.connectionKey,
+				videoSelector: config.videoSelector,
+				debug: config.debug,
+				onSuccess: config.onSuccess,
+				onError: config.onError,
+				saveConnectionKeyToCookie: config.saveConnectionKeyToCookie
+			})
+
+			mode_option.addEventListener("change", function() {
+				//Yeah, its bad
+				//But videojs needs to be reloaded for this
+				urlParams.set("vrmode", mode_option.value);
+				window.location.search = urlParams.toString();
+			});
+			motion_option.addEventListener("change", function() {
+				urlParams.set("motion_controls", motion_option.checked);
+				window.location.search = urlParams.toString();
+			});
+			cardboard_option.addEventListener("change", function() {
+				urlParams.set("forced_cardboard", cardboard_option.checked);
+				window.location.search = urlParams.toString();
+			});
+			handy_option.addEventListener("change", function() {
+				urlParams.set("key", handy_option.value);
+				cookie_data["handy_key"] = handy_option.value;
+				setCookie("nos",JSON.stringify(cookie_data),7);
+
+				//We don't really need to reload for this
+				connectionkey = handy_option.value;
+				hand.onReady(connectionkey, scriptUrl);
+				console.log("Changed handy key!");
+			});
+			handy_offset.addEventListener("keyup", function(event) {
+				if (event.keyCode === 13) {
+					event.preventDefault();
+					cookie_data["handy_offset"] = handy_offset.value;
+					setCookie("nos",JSON.stringify(cookie_data),7);
+					hand.setOffset(handy_offset.value);
+				}
+			});
+
+
+			player.vr({projection: "AUTO"});
+
+			//player.currentTime(1);
+			//player.play();
+
+			setInterval(function() {
+				const http = new XMLHttpRequest();
+				http.open("POST", "{{basepath}}poll/{{videoid}}");
+				var data = new FormData();
+				data.append("time", player.currentTime());
+				http.send(data);
+			}, 5 * 1000);
+
+			{% if should_handy %}
+			document.getElementById("handers").style.display = "block";
+
+			player.on("play", evt => {
+				var current_time = player.currentTime();
+				console.log("playing",Math.round(current_time*1000));
+				hand.onPlay(current_time);
+			});
+			player.on("pause", evt => {
+				console.log("pause");
+				hand.onPause();
+			});
+
+			if (connectionkey != null) {
+				hand.onReady(connectionkey, scriptUrl);
+			}
+			{% endif %}
+		</script>
+	</body>
+</html>
